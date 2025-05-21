@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 const readline = require('readline');
 const SparseMatrix = require('./matrix');
 const { add, subtract, multiply } = require('./operations');
