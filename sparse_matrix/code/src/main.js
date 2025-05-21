@@ -13,8 +13,8 @@ console.log("3. Multiply");
 
 rl.question("Choose operation (1/2/3): ", (choice) => {
   try {
-    const mat1 = SparseMatrix.fromFile('sparse_matrix/sample_inputs/sample1.txt');
-    const mat2 = SparseMatrix.fromFile('sparse_matrix/sample_inputs/sample2.txt');
+    const mat1 = SparseMatrix.fromFile('sample_inputs/sample1.txt');
+    const mat2 = SparseMatrix.fromFile('sample_inputs/sample2.txt');
     let result;
 
     if (choice === '1') {
