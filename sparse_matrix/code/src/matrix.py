@@ -1,189 +1,88 @@
-const fs = require('fs');
+class InvalidFormatError(Exception):
+    pass
 
-class Entry {
-    constructor(r, c, val) {
-        this.row = r;
-        this.col = c;
-        this.val = val;
-    }
-}
+class SparseMatrix:
+    def __init__(self, num_rows, num_cols):
+        self.rows = num_rows
+        self.cols = num_cols
+        self.elements = {}  # {(row, col): value}
 
-class SparseMatrix {
-    constructor(rows, cols) {
-        this.numRows = rows;
-        this.numCols = cols;
-        this.data = []; // stores Entry objects
-    }
+    @classmethod
+    def from_file(cls, file_path):
+        try:
+            with open(file_path, 'r') as f:
+                lines = [line.strip() for line in f if line.strip()]
 
-    static fromFile(filePath) {
-        try {
-            const lines = fs.readFileSync(filePath, 'utf-8').split('\n');
-            let rows = 0, cols = 0;
-            let matrix = null;
+            if not lines[0].startswith("rows=") or not lines[1].startswith("cols="):
+                raise InvalidFormatError("Missing rows or cols header.")
 
-            for (let line of lines) {
-                line = line.trim();
-                if (line === '') continue;
+            rows = int(lines[0].split('=')[1])
+            cols = int(lines[1].split('=')[1])
 
-                if (line.startsWith('rows=')) {
-                    rows = parseInt(line.split('=')[1]);
-                } else if (line.startsWith('cols=')) {
-                    cols = parseInt(line.split('=')[1]);
-                    matrix = new SparseMatrix(rows, cols);
-                } else {
-                    // Parse the entry like (3, 4, 9)
-                    if (!line.startsWith('(') || !line.endsWith(')')) {
-                        throw new Error("Input file has wrong format");
-                    }
-                    const parts = line.slice(1, -1).split(',');
-                    if (parts.length !== 3) throw new Error("Input file has wrong format");
+            matrix = cls(rows, cols)
 
-                    const r = parseInt(parts[0]);
-                    const c = parseInt(parts[1]);
-                    const v = parseInt(parts[2]);
+            for line in lines[2:]:
+                if not (line.startswith("(") and line.endswith(")")):
+                    raise InvalidFormatError("Bad parenthesis format.")
 
-                    if (isNaN(r) || isNaN(c) || isNaN(v)) {
-                        throw new Error("Input file has wrong format");
-                    }
+                parts = line[1:-1].split(',')
+                if len(parts) != 3:
+                    raise InvalidFormatError("Each entry must have 3 values.")
 
-                    matrix.addData(r, c, v);
-                }
-            }
+                try:
+                    r, c, v = int(parts[0]), int(parts[1]), int(parts[2])
+                except ValueError:
+                    raise InvalidFormatError("Non-integer value found.")
 
-            return matrix;
-        } catch (err) {
-            throw new Error("Failed to read matrix: " + err.message);
-        }
-    }
+                matrix.set_element(r, c, v)
 
-    addData(row, col, val) {
-        if (row >= this.numRows || col >= this.numCols) return;
-        this.data.push(new Entry(row, col, val));
-    }
+            return matrix
 
-    getAt(row, col) {
-        for (let entry of this.data) {
-            if (entry.row === row && entry.col === col) {
-                return entry.val;
-            }
-        }
-        return 0;
-    }
+        except FileNotFoundError:
+            raise FileNotFoundError(f"File not found: {file_path}")
+        except InvalidFormatError as e:
+            raise ValueError(f"Input file has wrong format: {e}")
 
-    addMatrix(other) {
-        if (this.numRows !== other.numRows || this.numCols !== other.numCols) {
-            throw new Error("Matrix dimensions must match for addition");
-        }
+    def set_element(self, row, col, value):
+        if value != 0:
+            self.elements[(row, col)] = value
 
-        let result = new SparseMatrix(this.numRows, this.numCols);
-        let allEntries = {};
+    def get_element(self, row, col):
+        return self.elements.get((row, col), 0)
 
-        for (let entry of this.data) {
-            let key = `${entry.row},${entry.col}`;
-            allEntries[key] = entry.val;
-        }
+    def __str__(self):
+        return f"SparseMatrix({self.rows}x{self.cols}, {len(self.elements)} elements)"
 
-        for (let entry of other.data) {
-            let key = `${entry.row},${entry.col}`;
-            if (key in allEntries) {
-                allEntries[key] += entry.val;
-            } else {
-                allEntries[key] = entry.val;
-            }
-        }
+    def add(self, other):
+        if self.rows != other.rows or self.cols != other.cols:
+            raise ValueError("Matrix dimensions do not match for addition.")
 
-        for (let key in allEntries) {
-            let [r, c] = key.split(',').map(Number);
-            let v = allEntries[key];
-            if (v !== 0) result.addData(r, c, v);
-        }
+        result = SparseMatrix(self.rows, self.cols)
+        keys = set(self.elements.keys()).union(other.elements.keys())
+        for key in keys:
+            result.set_element(key[0], key[1], self.get_element(*key) + other.get_element(*key))
+        return result
 
-        return result;
-    }
+    def subtract(self, other):
+        if self.rows != other.rows or self.cols != other.cols:
+            raise ValueError("Matrix dimensions do not match for subtraction.")
 
-    subtractMatrix(other) {
-        let negated = new SparseMatrix(other.numRows, other.numCols);
-        for (let e of other.data) {
-            negated.addData(e.row, e.col, -e.val);
-        }
-        return this.addMatrix(negated);
-    }
+        result = SparseMatrix(self.rows, self.cols)
+        keys = set(self.elements.keys()).union(other.elements.keys())
+        for key in keys:
+            result.set_element(key[0], key[1], self.get_element(*key) - other.get_element(*key))
+        return result
 
-    multiplyMatrix(other) {
-        if (this.numCols !== other.numRows) {
-            throw new Error("Matrix dimensions not compatible for multiplication");
-        }
+    def multiply(self, other):
+        if self.cols != other.rows:
+            raise ValueError("Matrix dimensions do not allow multiplication.")
 
-        let result = new SparseMatrix(this.numRows, other.numCols);
+        result = SparseMatrix(self.rows, other.cols)
 
-        for (let a of this.data) {
-            for (let b of other.data) {
-                if (a.col === b.row) {
-                    let prev = result.getAt(a.row, b.col);
-                    result.setAt(a.row, b.col, prev + a.val * b.val);
-                }
-            }
-        }
-
-        return result;
-    }
-
-    setAt(row, col, value) {
-        if (value === 0) return;
-        for (let entry of this.data) {
-            if (entry.row === row && entry.col === col) {
-                entry.val = value;
-                return;
-            }
-        }
-        this.data.push(new Entry(row, col, value));
-    }
-
-    showStuff() {
-        console.log(`rows=${this.numRows}`);
-        console.log(`cols=${this.numCols}`);
-        for (let e of this.data) {
-            console.log(`(${e.row}, ${e.col}, ${e.val})`);
-        }
-    }
-}
-
-// Example menu
-const readline = require('readline').createInterface({
-    input: process.stdin,
-    output: process.stdout
-});
-
-function Menu() {
-    console.log("Choose an operation:");
-    console.log("1. Add");
-    console.log("2. Subtract");
-    console.log("3. Multiply");
-
-    readline.question("Enter your choice (1/2/3): ", (choice) => {
-        const path1 = "../../sample_inputs/matrix1.txt";
-        const path2 = "../../sample_inputs/matrix2.txt";
-
-        let m1 = SparseMatrix.fromFile(path1);
-        let m2 = SparseMatrix.fromFile(path2);
-        let result = null;
-
-        try {
-            if (choice === '1') result = m1.addMatrix(m2);
-            else if (choice === '2') result = m1.subtractMatrix(m2);
-            else if (choice === '3') result = m1.multiplyMatrix(m2);
-            else console.log("Invalid option");
-
-            if (result) {
-                console.log("\nResult Matrix:");
-                result.showStuff();
-            }
-        } catch (e) {
-            console.error("Something went wrong: " + e.message);
-        } finally {
-            readline.close();
-        }
-    });
-}
-
-Menu();
+        for (i, k1), v1 in self.elements.items():
+            for j in range(other.cols):
+                v2 = other.get_element(k1, j)
+                if v2 != 0:
+                    old = result.get_element(i, j)
+                    result.set_element(i, j, old + v1 * v2)
+        return result
