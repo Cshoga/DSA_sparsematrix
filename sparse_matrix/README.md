@@ -49,10 +49,6 @@ cols=3
 /code/src/ - Source code
 /sample_inputs/ - Input and output files
 
-yaml
-Copy
-Edit
-
 ---
 
 Made for Data Structures and Algorithms course.  
