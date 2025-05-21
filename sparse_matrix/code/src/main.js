@@ -1,64 +1,71 @@
 const readline = require('readline');
-const fs = require('fs');
-const path = require('path');
-
 const SparseMatrix = require('./matrix');
-const { addMatrices, subtractMatrices, multiplyMatrices } = require('./operations');
+const { add, subtract, multiply } = require('./operations');
+const fs = require('fs');
 
+// Create readline interface for CLI input/output
 const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
+  input: process.stdin,
+  output: process.stdout,
 });
 
+// Helper function to ask questions and get user input as a Promise
 function prompt(question) {
-    return new Promise(resolve => rl.question(question, resolve));
+  return new Promise(resolve => rl.question(question, resolve));
 }
 
-async function main() {
-    try {
-        console.log('Sparse Matrix user-friendly opreations\n');
+(async () => {
+  try {
+    // Print welcome menu
+    console.log('Welcome to matrix operations:');
+    console.log('1. Addition');
+    console.log('2. Subtraction');
+    console.log('3. Multiplication');
 
-        const operation = await prompt('Choose operation (add, subtract, multiply): ');
+    // Prompt user to select operation by number
+    const choice = await prompt('Choose operation (1/2/3): ');
 
-        // Automatically find the paths relative to the project root
-        const rootDir = path.resolve(__dirname, '../../');
-        const input1Path = path.join(rootDir, 'sample_inputs', 'sampl1.txt');
-        const input2Path = path.join(rootDir, 'sample_inputs', 'sample2.txt');
-        const outputPath = path.join(rootDir, 'sample_inputs', 'output.txt');
+    // Map user input to operation name
+    let operationName;
+    if (choice === '1') operationName = 'add';
+    else if (choice === '2') operationName = 'subtract';
+    else if (choice === '3') operationName = 'multiply';
+    else throw new Error('Invalid choice, please enter 1, 2, or 3');
 
-        const A = new SparseMatrix(input1Path);
-        const B = new SparseMatrix(input2Path);
+    // Prompt user for input file paths for the two matrices
+    const file1 = await prompt('Enter path for first matrix file: ');
+    const file2 = await prompt('Enter path for second matrix file: ');
 
-        let result;
+    // Load matrices from files
+    const matrixA = new SparseMatrix(file1.trim());
+    const matrixB = new SparseMatrix(file2.trim());
 
-        switch (operation.toLowerCase()) {
-            case 'add':
-                result = addMatrices(A, B);
-                break;
-            case 'subtract':
-                result = subtractMatrices(A, B);
-                break;
-            case 'multiply':
-                result = multiplyMatrices(A, B);
-                break;
-            default:
-                console.log('Invalid operation.');
-                rl.close();
-                return;
-        }
+    let result;
 
-        const outputLines = [`rows=${result.numRows}`, `cols=${result.numCols}`];
-        for (const { row, col, value } of result.getEntries()) {
-            outputLines.push(`(${row}, ${col}, ${value})`);
-        }
+    // Perform selected operation
+    if (operationName === 'add') result = add(matrixA, matrixB);
+    else if (operationName === 'subtract') result = subtract(matrixA, matrixB);
+    else if (operationName === 'multiply') result = multiply(matrixA, matrixB);
 
-        fs.writeFileSync(outputPath, outputLines.join('\n'));
-        console.log(`well Done! Output saved to: ${outputPath}`);
-    } catch (err) {
-        console.error('Error:', err.message);
-    } finally {
-        rl.close();
+    // Prepare output in required format
+    let output = `rows=${result.numRows}\ncols=${result.numCols}\n`;
+    for (const row in result.data) {
+      for (const col in result.data[row]) {
+        output += `(${row}, ${col}, ${result.data[row][col]})\n`;
+      }
     }
-}
 
-main();
+    // Save output to file
+    const outPath = 'result.txt';
+    fs.writeFileSync(outPath, output);
+
+    console.log(`Operation successful! Result saved to ${outPath}`);
+
+  } catch (err) {
+    // Print error message and exit
+    console.error('Error:', err.message);
+  } finally {
+    // Close readline interface
+    rl.close();
+  }
+})();
