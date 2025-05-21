@@ -29,9 +29,9 @@ class SparseMatrix:
                 # Read each non-zero element from the file
                 for line in f:
                     line = line.strip()
-                    if line == ():
+                    if line == '':
                         continue
-                    if not (line.startswith('[') and line.endswith(']')):
+                    if not (line.startswith('(') and line.endswith(')')):
                         raise ValueError("Input file has wrong format: Bad parenthesis format.")
                     content = line[1:-1]  # remove ( )
                     parts = content.split(',')
