@@ -109,4 +109,47 @@ class SparseMatrix {
    */
   subtract(other) {
     if (this.numRows !== other.numRows || this.numCols !== other.numCols) {
-      throw new Error("Matrix dimensions must match
+      throw new Error("Matrix dimensions must match for subtraction"):
+    }
+     const result = new SparseMatrix(this.numRows, this.numCols);
+
+    for (const key in this.elements) {
+      result.elements[key] = this.elements[key];
+    }
+
+    for (const key in other.elements) {
+      result.elements[key] = (result.elements[key] || 0) - other.elements[key];
+    }
+
+    return result;
+  }
+
+  /**
+   * Multiply this matrix with another matrix.
+   * Columns of the first matrix must match the rows of the second.
+   */
+  multiply(other) {
+    if (this.numCols !== other.numRows) {
+      throw new Error("Matrix dimensions are not compatible for multiplication.");
+    }
+
+    const result = new SparseMatrix(this.numRows, other.numCols);
+
+    for (const key1 in this.elements) {
+      const [i, k] = key1.split(',').map(Number);
+      const val1 = this.elements[key1];
+
+      for (let j = 0; j < other.numCols; j++) {
+        const val2 = other.getElement(k, j);
+        if (val2 !== 0) {
+          const current = result.getElement(i, j);
+          result.setElement(i, j, current + val1 * val2);
+        }
+      }
+    }
+
+    return result;
+  }
+}
+
+module.exports = SparseMatrix;
