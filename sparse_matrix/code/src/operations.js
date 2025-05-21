@@ -1,101 +1,100 @@
-// operations.js
-// Defines matrix operations: addition, subtraction, multiplication.
+#!/usr/bin/env node
 
 const SparseMatrix = require('./matrix');
 
-function addMatrices(A, B) {
-    if (A.numRows !== B.numRows || A.numCols !== B.numCols) {
-        throw new Error("Matrix size mismatch for addition");
+/**
+ * Add two sparse matrices
+ */
+function add(A, B) {
+  // Check dimensions
+  if (A.numRows !== B.numRows || A.numCols !== B.numCols) {
+    throw new Error('Matrix dimensions must match for addition');
+  }
+
+  const result = new SparseMatrix(A.numRows, A.numCols);
+
+  // Copy all elements from A to result
+  for (const r in A.data) {
+    for (const c in A.data[r]) {
+      result.setElement(parseInt(r), parseInt(c), A.data[r][c]);
     }
+  }
 
-    const result = new SparseMatrix();
-    result.numRows = A.numRows;
-    result.numCols = A.numCols;
-
-    const map = new Map();
-
-    for (const { row, col, value } of A.getEntries()) {
-        map.set(`${row},${col}`, value);
+  // Add elements from B
+  for (const r in B.data) {
+    for (const c in B.data[r]) {
+      const current = result.getElement(parseInt(r), parseInt(c));
+      result.setElement(parseInt(r), parseInt(c), current + B.data[r][c]);
     }
+  }
 
-    for (const { row, col, value } of B.getEntries()) {
-        const key = `${row},${col}`;
-        map.set(key, (map.get(key) || 0) + value);
-    }
-
-    for (const [key, value] of map.entries()) {
-        if (value !== 0) {
-            const [row, col] = key.split(',').map(Number);
-            result.setElement(row, col, value);
-        }
-    }
-
-    return result;
+  return result;
 }
 
-function subtractMatrices(A, B) {
-    if (A.numRows !== B.numRows || A.numCols !== B.numCols) {
-        throw new Error("Matrix size mismatch for subtraction");
+/**
+ * Subtract matrix B from matrix A
+ */
+function subtract(A, B) {
+  // Check dimensions
+  if (A.numRows !== B.numRows || A.numCols !== B.numCols) {
+    throw new Error('Matrix dimensions must match for subtraction');
+  }
+
+  const result = new SparseMatrix(A.numRows, A.numCols);
+
+  // Copy all elements from A to result
+  for (const r in A.data) {
+    for (const c in A.data[r]) {
+      result.setElement(parseInt(r), parseInt(c), A.data[r][c]);
     }
+  }
 
-    const result = new SparseMatrix();
-    result.numRows = A.numRows;
-    result.numCols = A.numCols;
-
-    const map = new Map();
-
-    for (const { row, col, value } of A.getEntries()) {
-        map.set(`${row},${col}`, value);
+  // Subtract elements from B
+  for (const r in B.data) {
+    for (const c in B.data[r]) {
+      const current = result.getElement(parseInt(r), parseInt(c));
+      result.setElement(parseInt(r), parseInt(c), current - B.data[r][c]);
     }
+  }
 
-    for (const { row, col, value } of B.getEntries()) {
-        const key = `${row},${col}`;
-        map.set(key, (map.get(key) || 0) - value);
-    }
-
-    for (const [key, value] of map.entries()) {
-        if (value !== 0) {
-            const [row, col] = key.split(',').map(Number);
-            result.setElement(row, col, value);
-        }
-    }
-
-    return result;
+  return result;
 }
 
-function multiplyMatrices(A, B) {
-    if (A.numCols !== B.numRows) {
-        throw new Error("Matrix size mismatch for multiplication");
-    }
+/**
+ * Multiply two sparse matrices
+ */
+function multiply(A, B) {
+  // Check if multiplication possible (A cols == B rows)
+  if (A.numCols !== B.numRows) {
+    throw new Error('Number of columns of A must equal number of rows of B for multiplication');
+  }
 
-    const result = new SparseMatrix();
-    result.numRows = A.numRows;
-    result.numCols = B.numCols;
+  const result = new SparseMatrix(A.numRows, B.numCols);
 
-    const bMap = new Map(); // row → array of (col, val)
+  // Multiply sparse matrices using only non-zero values
+  for (const rA in A.data) {
+    for (const cA in A.data[rA]) {
+      const valA = A.data[rA][cA];
+      const rowA = parseInt(rA);
+      const colA = parseInt(cA);
 
-    for (const { row, col, value } of B.getEntries()) {
-        if (!bMap.has(row)) {
-            bMap.set(row, []);
+      if (B.data[colA]) {
+        for (const cB in B.data[colA]) {
+          const valB = B.data[colA][cB];
+          const colB = parseInt(cB);
+
+          const oldVal = result.getElement(rowA, colB);
+          result.setElement(rowA, colB, oldVal + valA * valB);
         }
-        bMap.get(row).push({ col, value });
+      }
     }
+  }
 
-    for (const { row: i, col: k, value: aVal } of A.getEntries()) {
-        const bRow = bMap.get(k);
-        if (bRow) {
-            for (const { col: j, value: bVal } of bRow) {
-                const current = result.getElement(i, j);
-                result.setElement(i, j, current + aVal * bVal);
-            }
-        }
-    }
-
-    return result;
+  return result;
 }
 
 module.exports = {
-    addMatrices,
-    subtractMatrices,
-    multiplyMatrices
+  add,
+  subtract,
+  multiply,
 };
