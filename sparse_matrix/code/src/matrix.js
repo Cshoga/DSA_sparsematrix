@@ -109,7 +109,7 @@ class SparseMatrix {
    */
   subtract(other) {
     if (this.numRows !== other.numRows || this.numCols !== other.numCols) {
-      throw new Error("Matrix dimensions must match for subtraction"):
+      throw new Error("Matrix dimensions must match for subtraction");
     }
      const result = new SparseMatrix(this.numRows, this.numCols);
 
